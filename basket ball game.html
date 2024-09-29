@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basket Ball Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #87CEEB;
+        }
+
+        .game-container {
+            display: none;
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background-color: #c8e6c9;
+            border: 2px solid #4caf50;
+            overflow: hidden;
+        }
+
+        #basket {
+            position: absolute;
+            bottom: 0;
+            left: 160px;
+            width: 80px;
+            height: 30px;
+            background-color: #000;
+        }
+
+        #falling-object, #special-object, #booster-object {
+            position: absolute;
+            top: 0;
+            width: 30px;
+            height: 30px;
+            background-color: #f44336;
+            border-radius: 50%;
+        }
+
+        #special-object {
+            background-color: gold;
+        }
+
+        #booster-object {
+            background-color: limegreen;
+        }
+
+        #score, #time {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+
+        #start-screen, #end-screen, #difficulty-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        #start-screen h1 {
+            font-size: 48px;
+        }
+
+        #start-btn, #slow-btn, #fast-btn, #retry-btn {
+            padding: 10px 20px;
+            font-size: 24px;
+            margin-top: 20px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #start-btn:hover, #slow-btn:hover, #fast-btn:hover, #retry-btn:hover {
+            background-color: #45a049;
+        }
+
+        #medal {
+            font-size: 24px;
+            color: gold;
+        }
+
+        .control-buttons {
+            display: none;
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .control-buttons button {
+            width: 100px;
+            height: 50px;
+            font-size: 20px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .control-buttons button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="start-screen">
+        <h1>Basket Ball Game</h1>
+        <button id="start-btn">Start</button>
+    </div>
+
+    <div id="difficulty-screen" style="display:none;">
+        <h1>Choose Difficulty</h1>
+        <button id="slow-btn">Start Slow</button>
+        <button id="fast-btn">Start Fast</button>
+    </div>
+
+    <div class="game-container" id="game">
+        <div id="basket"></div>
+        <div id="falling-object"></div>
+        <div id="special-object"></div>
+        <div id="booster-object"></div> <!-- عنصر المنشط -->
+    </div>
+
+    <div class="control-buttons" id="control-buttons">
+        <button id="left-btn">Left</button>
+        <button id="right-btn">Right</button>
+    </div>
+
+    <p id="score">Score: 0</p>
+    <p id="time">Time: 0</p>
+    <p id="medal"></p>
+
+    <div id="end-screen" style="display:none;">
+        <h1 id="end-message"></h1>
+        <button id="retry-btn">Retry</button>
+    </div>
+
+    <script>
+        let basket = document.getElementById("basket");
+        let fallingObject = document.getElementById("falling-object");
+        let specialObject = document.getElementById("special-object");
+        let boosterObject = document.getElementById("booster-object");
+        let scoreDisplay = document.getElementById("score");
+        let timeDisplay = document.getElementById("time");
+        let medalDisplay = document.getElementById("medal");
+        let gameContainer = document.getElementById("game");
+        let startScreen = document.getElementById("start-screen");
+        let endScreen = document.getElementById("end-screen");
+        let endMessage = document.getElementById("end-message");
+        let difficultyScreen = document.getElementById("difficulty-screen");
+        let controlButtons = document.getElementById("control-buttons");
+
+        let basketPosition = 160;
+        let objectPositionX = Math.floor(Math.random() * 370);
+        let specialObjectPositionX = Math.floor(Math.random() * 370);
+        let boosterObjectPositionX = Math.floor(Math.random() * 370);
+        let objectPositionY = 0;
+        let specialObjectPositionY = -200;
+        let boosterObjectPositionY = -400;
+        let score = 0;
+        let time = 0;
+        let gameSpeed = 2;
+        let gameInterval;
+        let timeInterval;
+        let isFastMode = false;
+        let boosterAppeared = false;
+
+        let catchSound = new Audio('catch.mp3');
+        let loseSound = new Audio('lose.mp3');
+
+        document.getElementById("start-btn").addEventListener("click", showDifficultyOptions);
+        document.getElementById("slow-btn").addEventListener("click", function() { startGame(false); });
+        document.getElementById("fast-btn").addEventListener("click", function() { startGame(true); });
+        document.getElementById("retry-btn").addEventListener("click", retryGame);
+
+        document.getElementById("left-btn").addEventListener("click", function() {
+            if (basketPosition > 0) {
+                basketPosition -= 20;
+            }
+            basket.style.left = basketPosition + "px";
+        });
+
+        document.getElementById("right-btn").addEventListener("click", function() {
+            if (basketPosition < 320) {
+                basketPosition += 20;
+            }
+            basket.style.left = basketPosition + "px";
+        });
+
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "ArrowRight" && basketPosition < 320) {
+                basketPosition += 20;
+            } else if (event.key === "ArrowLeft" && basketPosition > 0) {
+                basketPosition -= 20;
+            }
+            basket.style.left = basketPosition + "px";
+        });
+
+        function showDifficultyOptions() {
+            startScreen.style.display = "none";
+            difficultyScreen.style.display = "flex";
+        }
+
+        function startGame(isFast) {
+            difficultyScreen.style.display = "none";
+            endScreen.style.display = "none";
+            gameContainer.style.display = "block";
+            controlButtons.style.display = "flex";
+            score = 0;
+            time = 0;
+            boosterAppeared = false;
+            isFastMode = isFast;
+            gameSpeed = isFast ? 6 : 2;
+            scoreDisplay.textContent = "Score: " + score;
+            timeDisplay.textContent = "Time: " + time;
+            medalDisplay.textContent = "";
+            objectPositionY = 0;
+            specialObjectPositionY = -200;
+            boosterObjectPositionY = -400;
+            objectPositionX = Math.floor(Math.random() * 370);
+            specialObjectPositionX = Math.floor(Math.random() * 370);
+            boosterObjectPositionX = Math.floor(Math.random() * 370);
+            basketPosition = 160;
+            basket.style.left = basketPosition + "px";
+
+            gameInterval = setInterval(dropObject, 50);
+            timeInterval = setInterval(updateTime, 1000);
+        }
+
+        function dropObject() {
+            objectPositionY += gameSpeed;
+            specialObjectPositionY += gameSpeed / 2;
+            boosterObjectPositionY += gameSpeed / 2;
+            fallingObject.style.top = objectPositionY + "px";
+            fallingObject.style.left = objectPositionX + "px";
+            specialObject.style.top = specialObjectPositionY + "px";
+            specialObject.style.left = specialObjectPositionX + "px";
+            boosterObject.style.top = boosterObjectPositionY + "px";
+            boosterObject.style.left = boosterObjectPositionX + "px";
+
+            if (objectPositionY >= 570 && objectPositionX >= basketPosition && objectPositionX <= basketPosition + 80) {
+                score++;
+                scoreDisplay.textContent = "Score: " + score;
+                catchSound.play();
+                increaseDifficulty();
+                resetObject();
+            } else if (objectPositionY > 600) {
+                loseSound.play();
+                endGame(false);
+            }
+
+            if (specialObjectPositionY >= 570 && specialObjectPositionX >= basketPosition && specialObjectPositionX <= basketPosition + 80) {
+                score += 5;
+                scoreDisplay.textContent = "Score: " + score;
+                catchSound.play();
+                specialObjectPositionY = -200;
+                specialObjectPositionX = Math.floor(Math.random() * 370);
+            }
+
+            if (boosterObjectPositionY >= 570 && boosterObjectPositionX >= basketPosition && boosterObjectPositionX <= basketPosition + 80 && !boosterAppeared) {
+                gameSpeed *= 0.5;
+                boosterAppeared = true;
+                setTimeout(() => {
+                    gameSpeed *= 2;
+                    boosterAppeared = false;
+                }, 5000);
+                boosterObjectPositionY = -400;
+                boosterObjectPositionX = Math.floor(Math.random() * 370);
+            }
+        }
+
+        function increaseDifficulty() {
+            if (score % 5 === 0) {
+                gameSpeed += 0.5;
+            }
+        }
+
+        function resetObject() {
+            objectPositionY = 0;
+            objectPositionX = Math.floor(Math.random() * 370);
+        }
+
+        function updateTime() {
+            time++;
+            timeDisplay.textContent = "Time: " + time;
+            if (time === 50) {
+                endGame(true);
+            }
+        }
+
+        function endGame(won) {
+            clearInterval(gameInterval);
+            clearInterval(timeInterval);
+            gameContainer.style.display = "none";
+            controlButtons.style.display = "none";
+            endScreen.style.display = "flex";
+            endMessage.textContent = won ? "You Won!" : "Game Over!";
+            if (won) {
+                medalDisplay.textContent = "You won a gold medal!";
+            }
+        }
+
+        function retryGame() {
+            startGame(isFastMode);
+        }
+    </script>
+</body>
+</html>
